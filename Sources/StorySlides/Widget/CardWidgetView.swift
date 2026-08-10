@@ -1,15 +1,20 @@
 import SwiftUI
 
-/// Renders one `CardWidget` and calls `onFinished` once the user is ready to
-/// advance — with `isCorrect` set for graded widgets, `nil` for ungraded ones.
-struct CardWidgetView: View {
+/// Renders one `CardWidget` full-bleed, same visual language as a
+/// `StorySlide` (big centered type, no chrome). Non-interactive areas are
+/// left hit-testable-through so the deck's shared tap zones still work —
+/// only real choices (quiz options, a text field) are tappable controls.
+struct CardWidgetContent: View {
     let prompt: String?
     let widget: CardWidget
     let accentColor: Color
-    let onFinished: (Bool?) -> Void
+    let isResolved: Bool
+    let onResolved: (Bool?) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(spacing: 28) {
+            Spacer(minLength: 0)
+
             if let prompt {
                 Text(prompt.uppercased())
                     .font(.footnote.weight(.semibold))
@@ -17,118 +22,163 @@ struct CardWidgetView: View {
                     .foregroundStyle(accentColor)
             }
 
-            switch widget {
-            case let .singleChoiceQuiz(question, options, correctIndex, explanation):
-                ChoiceQuizView(
-                    question: question,
-                    options: options,
-                    correctIndices: [correctIndex],
-                    isMultiSelect: false,
-                    explanation: explanation,
-                    accentColor: accentColor,
-                    onFinished: onFinished
-                )
+            content(for: widget)
 
-            case let .multiChoiceQuiz(question, options, correctIndices, explanation):
-                ChoiceQuizView(
-                    question: question,
-                    options: options,
-                    correctIndices: correctIndices,
-                    isMultiSelect: true,
-                    explanation: explanation,
-                    accentColor: accentColor,
-                    onFinished: onFinished
-                )
+            Spacer(minLength: 0)
 
-            case let .trueFalse(statement, isTrue, explanation):
-                TrueFalseView(
-                    statement: statement,
-                    isTrue: isTrue,
-                    explanation: explanation,
-                    accentColor: accentColor,
-                    onFinished: onFinished
-                )
-
-            case let .fillInBlank(prompt, answer, hint):
-                FillInBlankView(
-                    prompt: prompt,
-                    answer: answer,
-                    hint: hint,
-                    accentColor: accentColor,
-                    onFinished: onFinished
-                )
-
-            case let .flipCard(front, back):
-                FlipCardView(front: front, back: back, accentColor: accentColor, onFinished: onFinished)
-
-            case let .counter(label, value, total):
-                StatView(
-                    label: label,
-                    value: total.map { "\(value)/\($0)" } ?? "\(value)",
-                    accentColor: accentColor,
-                    onFinished: onFinished
-                )
-
-            case let .rating(label, value, maxValue):
-                StatView(
-                    label: label,
-                    value: String(repeating: "★", count: value) + String(repeating: "☆", count: max(0, maxValue - value)),
-                    accentColor: accentColor,
-                    onFinished: onFinished
-                )
+            if showsContinueHint {
+                Text("Toca para continuar")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.4))
+                    .padding(.bottom, 36)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var showsContinueHint: Bool {
+        switch widget.tapBehavior {
+        case .advanceImmediately: return true
+        case .revealThenAdvance: return isResolved
+        case .requiresInteraction: return isResolved
+        }
+    }
+
+    @ViewBuilder
+    private func content(for widget: CardWidget) -> some View {
+        switch widget {
+        case let .flipCard(front, back):
+            FlipCardContent(front: front, back: back, isRevealed: isResolved, accentColor: accentColor)
+
+        case let .singleChoiceQuiz(question, options, correctIndex, explanation):
+            ChoiceQuizContent(
+                question: question,
+                options: options,
+                correctIndices: [correctIndex],
+                isMultiSelect: false,
+                explanation: explanation,
+                accentColor: accentColor,
+                isResolved: isResolved,
+                onResolved: onResolved
+            )
+
+        case let .multiChoiceQuiz(question, options, correctIndices, explanation):
+            ChoiceQuizContent(
+                question: question,
+                options: options,
+                correctIndices: correctIndices,
+                isMultiSelect: true,
+                explanation: explanation,
+                accentColor: accentColor,
+                isResolved: isResolved,
+                onResolved: onResolved
+            )
+
+        case let .trueFalse(statement, isTrue, explanation):
+            ChoiceQuizContent(
+                question: statement,
+                options: ["Verdadero", "Falso"],
+                correctIndices: [isTrue ? 0 : 1],
+                isMultiSelect: false,
+                explanation: explanation,
+                accentColor: accentColor,
+                isResolved: isResolved,
+                onResolved: onResolved
+            )
+
+        case let .fillInBlank(prompt, answer, hint):
+            FillInBlankContent(
+                prompt: prompt,
+                answer: answer,
+                hint: hint,
+                accentColor: accentColor,
+                isResolved: isResolved,
+                onResolved: onResolved
+            )
+
+        case let .counter(label, value, total):
+            StatContent(label: label, value: total.map { "\(value)/\($0)" } ?? "\(value)", accentColor: accentColor)
+
+        case let .rating(label, value, maxValue):
+            StatContent(
+                label: label,
+                value: String(repeating: "★", count: value) + String(repeating: "☆", count: max(0, maxValue - value)),
+                accentColor: accentColor
+            )
+        }
     }
 }
 
-private struct ContinueButton: View {
+private struct FlipCardContent: View {
+    let front: String
+    let back: String
+    let isRevealed: Bool
     let accentColor: Color
-    let action: () -> Void
+
+    private var backHeadline: String {
+        back.components(separatedBy: "\n\n").first ?? back
+    }
+
+    private var backCaption: String? {
+        let parts = back.components(separatedBy: "\n\n")
+        return parts.count > 1 ? parts[1] : nil
+    }
 
     var body: some View {
-        Button("Continuar", action: action)
-            .font(.headline)
-            .foregroundStyle(.black)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(accentColor, in: RoundedRectangle(cornerRadius: 14))
+        VStack(spacing: 16) {
+            Text(isRevealed ? backHeadline : front)
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.white)
+                .transition(.opacity)
+                .id(isRevealed)
+
+            if isRevealed, let backCaption {
+                Text(backCaption)
+                    .font(.body)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+
+            if !isRevealed {
+                Text("Toca para ver la traducción")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: isRevealed)
     }
 }
 
-private struct ChoiceQuizView: View {
+private struct ChoiceQuizContent: View {
     let question: String
     let options: [String]
     let correctIndices: Set<Int>
     let isMultiSelect: Bool
     let explanation: String?
     let accentColor: Color
-    let onFinished: (Bool?) -> Void
+    let isResolved: Bool
+    let onResolved: (Bool?) -> Void
 
     @State private var selected: Set<Int> = []
-    @State private var isLocked = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(spacing: 24) {
             Text(question)
-                .font(.title2.weight(.bold))
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
                 .foregroundStyle(.white)
 
             VStack(spacing: 10) {
                 ForEach(options.indices, id: \.self) { i in
                     Button {
-                        guard !isLocked else { return }
-                        if isMultiSelect {
-                            if selected.contains(i) { selected.remove(i) } else { selected.insert(i) }
-                        } else {
-                            selected = [i]
-                        }
+                        select(i)
                     } label: {
                         HStack {
                             Text(options[i])
-                                .foregroundStyle(.white)
                             Spacer()
-                            if isLocked {
+                            if isResolved {
                                 if correctIndices.contains(i) {
                                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                                 } else if selected.contains(i) {
@@ -136,112 +186,64 @@ private struct ChoiceQuizView: View {
                                 }
                             }
                         }
-                        .padding(14)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.vertical, 14)
+                        .padding(.horizontal, 18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(background(for: i), in: RoundedRectangle(cornerRadius: 14))
                     }
-                    .disabled(isLocked)
+                    .disabled(isResolved)
                 }
             }
 
-            if isLocked {
-                if let explanation {
-                    Text(explanation)
-                        .font(.footnote)
-                        .foregroundStyle(.white.opacity(0.7))
+            if isMultiSelect && !isResolved {
+                Button("Comprobar") {
+                    onResolved(selected == correctIndices)
                 }
-                ContinueButton(accentColor: accentColor) {
-                    onFinished(selected == correctIndices)
-                }
-            } else if isMultiSelect {
-                Button("Comprobar") { isLocked = true }
-                    .font(.headline)
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(accentColor, in: RoundedRectangle(cornerRadius: 14))
-                    .disabled(selected.isEmpty)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(accentColor)
+                .disabled(selected.isEmpty)
+            }
+
+            if isResolved, let explanation {
+                Text(explanation)
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
             }
         }
-        .onChange(of: selected) { _, newValue in
-            guard !isMultiSelect, !newValue.isEmpty else { return }
-            isLocked = true
+    }
+
+    private func select(_ i: Int) {
+        guard !isResolved else { return }
+        if isMultiSelect {
+            if selected.contains(i) { selected.remove(i) } else { selected.insert(i) }
+        } else {
+            selected = [i]
+            onResolved(selected == correctIndices)
         }
     }
 
     private func background(for index: Int) -> Color {
-        guard isLocked else {
-            return selected.contains(index) ? .white.opacity(0.18) : .white.opacity(0.08)
+        guard isResolved else {
+            return selected.contains(index) ? .white.opacity(0.16) : .white.opacity(0.06)
         }
-        if correctIndices.contains(index) { return .green.opacity(0.25) }
-        if selected.contains(index) { return .red.opacity(0.25) }
-        return .white.opacity(0.05)
+        if correctIndices.contains(index) { return .green.opacity(0.22) }
+        if selected.contains(index) { return .red.opacity(0.22) }
+        return .white.opacity(0.04)
     }
 }
 
-private struct TrueFalseView: View {
-    let statement: String
-    let isTrue: Bool
-    let explanation: String?
-    let accentColor: Color
-    let onFinished: (Bool?) -> Void
-
-    @State private var answer: Bool?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text(statement)
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
-
-            HStack(spacing: 12) {
-                optionButton(label: "Verdadero", value: true)
-                optionButton(label: "Falso", value: false)
-            }
-
-            if answer != nil {
-                if let explanation {
-                    Text(explanation)
-                        .font(.footnote)
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-                ContinueButton(accentColor: accentColor) {
-                    onFinished(answer == isTrue)
-                }
-            }
-        }
-    }
-
-    private func optionButton(label: String, value: Bool) -> some View {
-        Button {
-            guard answer == nil else { return }
-            answer = value
-        } label: {
-            Text(label)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .foregroundStyle(.white)
-                .background(background(for: value), in: RoundedRectangle(cornerRadius: 14))
-        }
-        .disabled(answer != nil)
-    }
-
-    private func background(for value: Bool) -> Color {
-        guard let answer else { return .white.opacity(0.08) }
-        if value == isTrue { return .green.opacity(0.25) }
-        if value == answer { return .red.opacity(0.25) }
-        return .white.opacity(0.05)
-    }
-}
-
-private struct FillInBlankView: View {
+private struct FillInBlankContent: View {
     let prompt: String
     let answer: String
     let hint: String?
     let accentColor: Color
-    let onFinished: (Bool?) -> Void
+    let isResolved: Bool
+    let onResolved: (Bool?) -> Void
 
     @State private var input = ""
-    @State private var isChecked = false
     @FocusState private var isFocused: Bool
 
     private var isCorrect: Bool {
@@ -250,114 +252,59 @@ private struct FillInBlankView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(spacing: 24) {
             Text(prompt)
-                .font(.title2.weight(.bold))
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
                 .foregroundStyle(.white)
 
-            TextField("Tu respuesta", text: $input)
-                .focused($isFocused)
-                .textFieldStyle(.plain)
-                .padding(14)
-                .foregroundStyle(.white)
-                .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-                .disabled(isChecked)
-                .autocorrectionDisabled()
-
-            if let hint, !isChecked {
-                Text("Pista: \(hint)")
-                    .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.6))
-            }
-
-            if isChecked {
-                Text(isCorrect ? "¡Correcto!" : "La respuesta era: \(answer)")
-                    .font(.footnote.weight(.semibold))
+            if isResolved {
+                Text(isCorrect ? "¡Correcto!" : "Era: \(answer)")
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(isCorrect ? .green : .red)
-                ContinueButton(accentColor: accentColor) {
-                    onFinished(isCorrect)
-                }
             } else {
-                Button("Comprobar") {
-                    isFocused = false
-                    isChecked = true
-                }
-                .font(.headline)
-                .foregroundStyle(.black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(accentColor, in: RoundedRectangle(cornerRadius: 14))
-                .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-    }
-}
-
-private struct FlipCardView: View {
-    let front: String
-    let back: String
-    let accentColor: Color
-    let onFinished: (Bool?) -> Void
-
-    @State private var isFlipped = false
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Button {
-                withAnimation(.spring(duration: 0.4)) { isFlipped.toggle() }
-            } label: {
-                Text(isFlipped ? back : front)
-                    .font(.title2.weight(.bold))
+                TextField("Escribe tu respuesta", text: $input)
+                    .focused($isFocused)
                     .multilineTextAlignment(.center)
+                    .font(.title3)
                     .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, minHeight: 180)
-                    .padding(24)
-                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(accentColor.opacity(0.6), lineWidth: 1)
-                    )
-            }
-            .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
+                    .textFieldStyle(.plain)
+                    .padding(.bottom, 8)
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(accentColor.opacity(0.6)).frame(height: 1)
+                    }
+                    .submitLabel(.done)
+                    .onSubmit {
+                        guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                        isFocused = false
+                        onResolved(isCorrect)
+                    }
 
-            Text(isFlipped ? "Toca para ver el frente" : "Toca para voltear")
-                .font(.footnote)
-                .foregroundStyle(.white.opacity(0.6))
-
-            if isFlipped {
-                ContinueButton(accentColor: accentColor) {
-                    onFinished(nil)
+                if let hint {
+                    Text("Pista: \(hint)")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.5))
                 }
             }
         }
-        .frame(maxWidth: .infinity)
+        .onAppear { isFocused = true }
     }
 }
 
-private struct StatView: View {
+private struct StatContent: View {
     let label: String
     let value: String
     let accentColor: Color
-    let onFinished: (Bool?) -> Void
 
     var body: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 10) {
-                Text(label.uppercased())
-                    .font(.footnote.weight(.semibold))
-                    .tracking(1.5)
-                    .foregroundStyle(accentColor)
-                Text(value)
-                    .font(.system(size: 40, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-            }
-            .padding(24)
-            .frame(maxWidth: .infinity)
-            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-
-            ContinueButton(accentColor: accentColor) {
-                onFinished(nil)
-            }
+        VStack(spacing: 10) {
+            Text(label.uppercased())
+                .font(.footnote.weight(.semibold))
+                .tracking(1.5)
+                .foregroundStyle(accentColor)
+            Text(value)
+                .font(.system(size: 44, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
         }
     }
 }

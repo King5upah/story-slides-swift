@@ -22,6 +22,33 @@ public enum CardWidget {
             return false
         }
     }
+
+    /// How the deck's shared left/right tap zones (same ones `StoryDeckView`
+    /// uses) resolve this card — everything advances the same way a story
+    /// does; only widgets with a real choice to make need their own tap
+    /// targets (the options themselves).
+    public enum TapBehavior {
+        /// First tap reveals the rest of the content, second tap advances
+        /// (flip cards: front → back → next).
+        case revealThenAdvance
+        /// Nothing to answer — a tap advances immediately, like any other
+        /// story slide.
+        case advanceImmediately
+        /// The card has its own tappable controls (quiz options, a text
+        /// field); the shared tap zone only advances once it's answered.
+        case requiresInteraction
+    }
+
+    public var tapBehavior: TapBehavior {
+        switch self {
+        case .flipCard:
+            return .revealThenAdvance
+        case .counter, .rating:
+            return .advanceImmediately
+        case .singleChoiceQuiz, .multiChoiceQuiz, .trueFalse, .fillInBlank:
+            return .requiresInteraction
+        }
+    }
 }
 
 /// A single card in a `CardDeckView` — an optional context label plus the

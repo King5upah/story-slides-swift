@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// Runs a deck of `BarajaCard`s one at a time — graded widgets (quizzes,
-/// true/false, fill-in-the-blank) must be answered before advancing;
-/// ungraded ones (flip cards, stats) advance on tap. Ends on a score screen.
+/// Runs a deck of `BarajaCard`s one at a time using the exact same
+/// interaction language as `StoryDeckView`: tap left/right to go back or
+/// advance. Graded widgets (quizzes, true/false, fill-in-the-blank) answer
+/// through their own controls; everything else — including revealing a flip
+/// card's back — advances through the shared tap zones, just like a story.
+/// Ends on a score screen.
 public struct CardDeckView: View {
     let title: String
     let icon: String
@@ -12,6 +15,7 @@ public struct CardDeckView: View {
     let onFinish: (DeckResult) -> Void
 
     @State private var index = 0
+    @State private var isResolved = false
     @State private var correctCount = 0
     @State private var gradedCount = 0
     @State private var isFinished = false
@@ -46,28 +50,39 @@ public struct CardDeckView: View {
                     }
                 )
             } else if cards.indices.contains(index) {
+                HStack(spacing: 0) {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onTapGesture { goBack() }
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onTapGesture { handleRightTap() }
+                }
+
+                CardWidgetContent(
+                    prompt: cards[index].prompt,
+                    widget: cards[index].widget,
+                    accentColor: accentColor,
+                    isResolved: isResolved,
+                    onResolved: resolve
+                )
+                .id(cards[index].id)
+
                 VStack(spacing: 0) {
                     header
-                    ScrollView {
-                        CardWidgetView(
-                            prompt: cards[index].prompt,
-                            widget: cards[index].widget,
-                            accentColor: accentColor,
-                            onFinished: { isCorrect in
-                                if let isCorrect {
-                                    gradedCount += 1
-                                    if isCorrect { correctCount += 1 }
-                                }
-                                advance()
-                            }
-                        )
-                        .id(cards[index].id)
-                        .padding(24)
-                    }
+                    Spacer()
                 }
             }
         }
         .preferredColorScheme(.dark)
+        .gesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { value in
+                    if value.translation.height > 80 { onExit() }
+                }
+        )
     }
 
     private var header: some View {
@@ -100,9 +115,46 @@ public struct CardDeckView: View {
         .padding(.top, 8)
     }
 
+    private func handleRightTap() {
+        guard cards.indices.contains(index) else { return }
+        if isResolved {
+            advance()
+            return
+        }
+        switch cards[index].widget.tapBehavior {
+        case .advanceImmediately:
+            resolve(nil)
+            advance()
+        case .revealThenAdvance:
+            withAnimation(.easeInOut(duration: 0.2)) { isResolved = true }
+        case .requiresInteraction:
+            break
+        }
+    }
+
+    private func resolve(_ isCorrect: Bool?) {
+        guard !isResolved else { return }
+        isResolved = true
+        if let isCorrect {
+            gradedCount += 1
+            if isCorrect { correctCount += 1 }
+        }
+    }
+
+    private func goBack() {
+        guard index > 0 else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            index -= 1
+            isResolved = false
+        }
+    }
+
     private func advance() {
         if index < cards.count - 1 {
-            index += 1
+            withAnimation(.easeInOut(duration: 0.2)) {
+                index += 1
+                isResolved = false
+            }
         } else {
             isFinished = true
         }
