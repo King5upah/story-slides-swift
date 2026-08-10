@@ -5,7 +5,7 @@ import Foundation
 /// Same shape as the JS SDK's `DeckManifest`
 /// (`packages/protocol/src/types.ts` in story-slides), so a link generated
 /// on web opens correctly here and vice versa.
-public struct DeckManifest: Codable {
+public struct DeckManifest: Codable, Identifiable {
     public static let currentVersion = 1
 
     public var version: Int
