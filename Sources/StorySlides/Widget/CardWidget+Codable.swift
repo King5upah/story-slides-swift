@@ -15,92 +15,102 @@ extension CardWidget: Codable {
         case prompt, answer, hint
         case front, back
         case label, value, total, maxValue
+        case action
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        let action = try c.decodeIfPresent(CTAAction.self, forKey: .action)
         switch try c.decode(Kind.self, forKey: .kind) {
         case .singleChoiceQuiz:
             self = .singleChoiceQuiz(
                 question: try c.decode(String.self, forKey: .question),
                 options: try c.decode([String].self, forKey: .options),
                 correctIndex: try c.decode(Int.self, forKey: .correctIndex),
-                explanation: try c.decodeIfPresent(String.self, forKey: .explanation)
+                explanation: try c.decodeIfPresent(String.self, forKey: .explanation),
+                action: action
             )
         case .multiChoiceQuiz:
             self = .multiChoiceQuiz(
                 question: try c.decode(String.self, forKey: .question),
                 options: try c.decode([String].self, forKey: .options),
                 correctIndices: try c.decode(Set<Int>.self, forKey: .correctIndices),
-                explanation: try c.decodeIfPresent(String.self, forKey: .explanation)
+                explanation: try c.decodeIfPresent(String.self, forKey: .explanation),
+                action: action
             )
         case .trueFalse:
             self = .trueFalse(
                 statement: try c.decode(String.self, forKey: .statement),
                 isTrue: try c.decode(Bool.self, forKey: .isTrue),
-                explanation: try c.decodeIfPresent(String.self, forKey: .explanation)
+                explanation: try c.decodeIfPresent(String.self, forKey: .explanation),
+                action: action
             )
         case .fillInBlank:
             self = .fillInBlank(
                 prompt: try c.decode(String.self, forKey: .prompt),
                 answer: try c.decode(String.self, forKey: .answer),
-                hint: try c.decodeIfPresent(String.self, forKey: .hint)
+                hint: try c.decodeIfPresent(String.self, forKey: .hint),
+                action: action
             )
         case .flipCard:
             self = .flipCard(
                 front: try c.decode(String.self, forKey: .front),
-                back: try c.decode(String.self, forKey: .back)
+                back: try c.decode(String.self, forKey: .back),
+                action: action
             )
         case .counter:
             self = .counter(
                 label: try c.decode(String.self, forKey: .label),
                 value: try c.decode(Int.self, forKey: .value),
-                total: try c.decodeIfPresent(Int.self, forKey: .total)
+                total: try c.decodeIfPresent(Int.self, forKey: .total),
+                action: action
             )
         case .rating:
             self = .rating(
                 label: try c.decode(String.self, forKey: .label),
                 value: try c.decode(Int.self, forKey: .value),
-                maxValue: try c.decode(Int.self, forKey: .maxValue)
+                maxValue: try c.decode(Int.self, forKey: .maxValue),
+                action: action
             )
         }
     }
 
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(action, forKey: .action)
         switch self {
-        case let .singleChoiceQuiz(question, options, correctIndex, explanation):
+        case let .singleChoiceQuiz(question, options, correctIndex, explanation, _):
             try c.encode(Kind.singleChoiceQuiz, forKey: .kind)
             try c.encode(question, forKey: .question)
             try c.encode(options, forKey: .options)
             try c.encode(correctIndex, forKey: .correctIndex)
             try c.encodeIfPresent(explanation, forKey: .explanation)
-        case let .multiChoiceQuiz(question, options, correctIndices, explanation):
+        case let .multiChoiceQuiz(question, options, correctIndices, explanation, _):
             try c.encode(Kind.multiChoiceQuiz, forKey: .kind)
             try c.encode(question, forKey: .question)
             try c.encode(options, forKey: .options)
             try c.encode(correctIndices, forKey: .correctIndices)
             try c.encodeIfPresent(explanation, forKey: .explanation)
-        case let .trueFalse(statement, isTrue, explanation):
+        case let .trueFalse(statement, isTrue, explanation, _):
             try c.encode(Kind.trueFalse, forKey: .kind)
             try c.encode(statement, forKey: .statement)
             try c.encode(isTrue, forKey: .isTrue)
             try c.encodeIfPresent(explanation, forKey: .explanation)
-        case let .fillInBlank(prompt, answer, hint):
+        case let .fillInBlank(prompt, answer, hint, _):
             try c.encode(Kind.fillInBlank, forKey: .kind)
             try c.encode(prompt, forKey: .prompt)
             try c.encode(answer, forKey: .answer)
             try c.encodeIfPresent(hint, forKey: .hint)
-        case let .flipCard(front, back):
+        case let .flipCard(front, back, _):
             try c.encode(Kind.flipCard, forKey: .kind)
             try c.encode(front, forKey: .front)
             try c.encode(back, forKey: .back)
-        case let .counter(label, value, total):
+        case let .counter(label, value, total, _):
             try c.encode(Kind.counter, forKey: .kind)
             try c.encode(label, forKey: .label)
             try c.encode(value, forKey: .value)
             try c.encodeIfPresent(total, forKey: .total)
-        case let .rating(label, value, maxValue):
+        case let .rating(label, value, maxValue, _):
             try c.encode(Kind.rating, forKey: .kind)
             try c.encode(label, forKey: .label)
             try c.encode(value, forKey: .value)

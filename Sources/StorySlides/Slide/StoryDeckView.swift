@@ -13,6 +13,7 @@ public struct StoryDeckView: View {
     let slides: [StorySlide]
     let onExit: () -> Void
     let onComplete: () -> Void
+    let onAction: (CTAAction) -> Void
 
     @State private var index = 0
     @State private var isQuizAnswered = false
@@ -23,7 +24,8 @@ public struct StoryDeckView: View {
         accentColor: Color = .accentColor,
         slides: [StorySlide],
         onExit: @escaping () -> Void = {},
-        onComplete: @escaping () -> Void = {}
+        onComplete: @escaping () -> Void = {},
+        onAction: @escaping (CTAAction) -> Void = { _ in }
     ) {
         self.title = title
         self.icon = icon
@@ -31,6 +33,7 @@ public struct StoryDeckView: View {
         self.slides = slides
         self.onExit = onExit
         self.onComplete = onComplete
+        self.onAction = onAction
     }
 
     public var body: some View {
@@ -53,7 +56,10 @@ public struct StoryDeckView: View {
                     slide: slides[index],
                     accentColor: accentColor,
                     isQuizAnswered: isQuizAnswered,
-                    onQuizAnswered: { isQuizAnswered = true }
+                    onQuizAnswered: {
+                        isQuizAnswered = true
+                        if let action = slides[index].action { onAction(action) }
+                    }
                 )
                 .id(index)
                 .transition(.opacity)
@@ -119,6 +125,7 @@ public struct StoryDeckView: View {
     private func goForward() {
         guard !currentIsUnansweredQuiz else { return }
         guard index < slides.count - 1 else {
+            if let action = slides.indices.contains(index) ? slides[index].action : nil { onAction(action) }
             onComplete()
             onExit()
             return
@@ -149,7 +156,7 @@ private struct StorySlideContent: View {
     @ViewBuilder
     private var content: some View {
         switch slide {
-        case let .title(icon, heading, subheading):
+        case let .title(icon, heading, subheading, _):
             VStack(spacing: 16) {
                 Text(icon).font(.system(size: 56))
                 Text(heading)
@@ -165,7 +172,7 @@ private struct StorySlideContent: View {
             }
             .allowsHitTesting(false)
 
-        case let .text(heading, body):
+        case let .text(heading, body, _):
             VStack(alignment: .leading, spacing: 12) {
                 if let heading {
                     Text(heading)
@@ -180,7 +187,7 @@ private struct StorySlideContent: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .allowsHitTesting(false)
 
-        case let .highlight(heading, value, caption):
+        case let .highlight(heading, value, caption, _):
             VStack(spacing: 10) {
                 Text(heading.uppercased())
                     .font(.footnote.weight(.semibold))
@@ -201,7 +208,7 @@ private struct StorySlideContent: View {
             .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
             .allowsHitTesting(false)
 
-        case let .example(text):
+        case let .example(text, _):
             Text(text)
                 .font(.title3.italic())
                 .multilineTextAlignment(.center)
@@ -213,7 +220,7 @@ private struct StorySlideContent: View {
                 )
                 .allowsHitTesting(false)
 
-        case let .table(heading, rows):
+        case let .table(heading, rows, _):
             VStack(alignment: .leading, spacing: 14) {
                 if let heading {
                     Text(heading)
@@ -241,7 +248,7 @@ private struct StorySlideContent: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .allowsHitTesting(false)
 
-        case let .tip(text):
+        case let .tip(text, _):
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "lightbulb.fill")
                     .foregroundStyle(accentColor)
@@ -253,7 +260,7 @@ private struct StorySlideContent: View {
             .background(accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
             .allowsHitTesting(false)
 
-        case let .quiz(question, options, correctIndex, explanation):
+        case let .quiz(question, options, correctIndex, explanation, _):
             QuizSlideContent(
                 question: question,
                 options: options,
@@ -264,7 +271,7 @@ private struct StorySlideContent: View {
                 onAnswered: onQuizAnswered
             )
 
-        case let .photo(imageData, caption):
+        case let .photo(imageData, caption, _):
             VStack(spacing: 12) {
                 if let uiImage = UIImage(data: imageData) {
                     Image(uiImage: uiImage)
@@ -281,7 +288,7 @@ private struct StorySlideContent: View {
             }
             .allowsHitTesting(false)
 
-        case let .cta(heading, body, label):
+        case let .cta(heading, body, label, _):
             VStack(spacing: 18) {
                 Text(heading)
                     .font(.title.weight(.bold))

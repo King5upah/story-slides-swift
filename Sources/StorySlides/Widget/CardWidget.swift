@@ -4,13 +4,28 @@ import Foundation
 /// This is the extensible part of the SDK — more cases can be added over
 /// time without touching `StorySlide` (the passive, non-graded deck type).
 public enum CardWidget {
-    case singleChoiceQuiz(question: String, options: [String], correctIndex: Int, explanation: String?)
-    case multiChoiceQuiz(question: String, options: [String], correctIndices: Set<Int>, explanation: String?)
-    case trueFalse(statement: String, isTrue: Bool, explanation: String?)
-    case fillInBlank(prompt: String, answer: String, hint: String?)
-    case flipCard(front: String, back: String)
-    case counter(label: String, value: Int, total: Int?)
-    case rating(label: String, value: Int, maxValue: Int)
+    case singleChoiceQuiz(question: String, options: [String], correctIndex: Int, explanation: String?, action: CTAAction? = nil)
+    case multiChoiceQuiz(question: String, options: [String], correctIndices: Set<Int>, explanation: String?, action: CTAAction? = nil)
+    case trueFalse(statement: String, isTrue: Bool, explanation: String?, action: CTAAction? = nil)
+    case fillInBlank(prompt: String, answer: String, hint: String?, action: CTAAction? = nil)
+    case flipCard(front: String, back: String, action: CTAAction? = nil)
+    case counter(label: String, value: Int, total: Int?, action: CTAAction? = nil)
+    case rating(label: String, value: Int, maxValue: Int, action: CTAAction? = nil)
+
+    /// The action this widget carries, if any — fired via `CardDeckView`'s
+    /// `onAction` when the widget's interaction resolves.
+    public var action: CTAAction? {
+        switch self {
+        case let .singleChoiceQuiz(_, _, _, _, action),
+             let .multiChoiceQuiz(_, _, _, _, action),
+             let .trueFalse(_, _, _, action),
+             let .fillInBlank(_, _, _, action),
+             let .flipCard(_, _, action),
+             let .counter(_, _, _, action),
+             let .rating(_, _, _, action):
+            return action
+        }
+    }
 
     /// Whether this widget needs a graded answer before advancing (counts
     /// toward `DeckResult`), vs. just an acknowledgement (flip cards, stats).

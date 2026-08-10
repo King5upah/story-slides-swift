@@ -66,6 +66,36 @@ CardDeckView(
 )
 ```
 
+## Actionable CTAs
+
+Any slide/widget case can carry an optional `action: CTAAction` — a `url`, a `deeplink`, or an app-defined `actionId`. The SDK never opens or navigates anywhere on its own; every kind funnels through the same `onAction` closure, so the host app decides what actually happens. Same shape as the [React SDK](https://github.com/King5upah/story-slides)'s `CTAAction` (same `kind`-keyed JSON, for decks shared across platforms).
+
+```swift
+public enum CTAAction: Codable, Equatable {
+    case url(String)
+    case deeplink(String)
+    case actionId(id: String, payload: [String: String]?)
+}
+```
+
+```swift
+StoryDeckView(
+    title: "Mi progreso",
+    icon: "sparkles",
+    slides: slides,
+    onAction: { action in
+        switch action {
+        case .url(let url), .deeplink(let url):
+            if let url = URL(string: url) { UIApplication.shared.open(url) }
+        case .actionId(let id, let payload):
+            handleAppAction(id, payload)
+        }
+    }
+)
+```
+
+It fires at the same moment each slide/widget already resolves — a `.cta` slide being tapped through (the shared tap zone advancing past it), a quiz being answered, a flip card being revealed — no separate tap-handling mechanism. `CardDeckView` takes the same `onAction` closure.
+
 ## License
 
 MIT

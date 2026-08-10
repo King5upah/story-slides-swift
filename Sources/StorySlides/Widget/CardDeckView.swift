@@ -13,6 +13,7 @@ public struct CardDeckView: View {
     let cards: [BarajaCard]
     let onExit: () -> Void
     let onFinish: (DeckResult) -> Void
+    let onAction: (CTAAction) -> Void
 
     @State private var index = 0
     @State private var isResolved = false
@@ -26,7 +27,8 @@ public struct CardDeckView: View {
         accentColor: Color = .accentColor,
         cards: [BarajaCard],
         onExit: @escaping () -> Void = {},
-        onFinish: @escaping (DeckResult) -> Void = { _ in }
+        onFinish: @escaping (DeckResult) -> Void = { _ in },
+        onAction: @escaping (CTAAction) -> Void = { _ in }
     ) {
         self.title = title
         self.icon = icon
@@ -34,6 +36,7 @@ public struct CardDeckView: View {
         self.cards = cards
         self.onExit = onExit
         self.onFinish = onFinish
+        self.onAction = onAction
     }
 
     public var body: some View {
@@ -127,6 +130,7 @@ public struct CardDeckView: View {
             advance()
         case .revealThenAdvance:
             withAnimation(.easeInOut(duration: 0.2)) { isResolved = true }
+            if let action = cards[index].widget.action { onAction(action) }
         case .requiresInteraction:
             break
         }
@@ -139,6 +143,7 @@ public struct CardDeckView: View {
             gradedCount += 1
             if isCorrect { correctCount += 1 }
         }
+        if cards.indices.contains(index), let action = cards[index].widget.action { onAction(action) }
     }
 
     private func goBack() {

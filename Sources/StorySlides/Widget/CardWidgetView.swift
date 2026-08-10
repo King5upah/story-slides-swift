@@ -48,10 +48,10 @@ struct CardWidgetContent: View {
     @ViewBuilder
     private func content(for widget: CardWidget) -> some View {
         switch widget {
-        case let .flipCard(front, back):
+        case let .flipCard(front, back, _):
             FlipCardContent(front: front, back: back, isRevealed: isResolved, accentColor: accentColor)
 
-        case let .singleChoiceQuiz(question, options, correctIndex, explanation):
+        case let .singleChoiceQuiz(question, options, correctIndex, explanation, _):
             ChoiceQuizContent(
                 question: question,
                 options: options,
@@ -63,7 +63,7 @@ struct CardWidgetContent: View {
                 onResolved: onResolved
             )
 
-        case let .multiChoiceQuiz(question, options, correctIndices, explanation):
+        case let .multiChoiceQuiz(question, options, correctIndices, explanation, _):
             ChoiceQuizContent(
                 question: question,
                 options: options,
@@ -75,7 +75,7 @@ struct CardWidgetContent: View {
                 onResolved: onResolved
             )
 
-        case let .trueFalse(statement, isTrue, explanation):
+        case let .trueFalse(statement, isTrue, explanation, _):
             ChoiceQuizContent(
                 question: statement,
                 options: ["Verdadero", "Falso"],
@@ -87,7 +87,7 @@ struct CardWidgetContent: View {
                 onResolved: onResolved
             )
 
-        case let .fillInBlank(prompt, answer, hint):
+        case let .fillInBlank(prompt, answer, hint, _):
             FillInBlankContent(
                 prompt: prompt,
                 answer: answer,
@@ -97,10 +97,10 @@ struct CardWidgetContent: View {
                 onResolved: onResolved
             )
 
-        case let .counter(label, value, total):
+        case let .counter(label, value, total, _):
             StatContent(label: label, value: total.map { "\(value)/\($0)" } ?? "\(value)", accentColor: accentColor)
 
-        case let .rating(label, value, maxValue):
+        case let .rating(label, value, maxValue, _):
             StatContent(
                 label: label,
                 value: String(repeating: "★", count: value) + String(repeating: "☆", count: max(0, maxValue - value)),

@@ -37,6 +37,7 @@ extension StorySlide: Codable {
         case question, options, correct, explanation
         case label
         case imageData
+        case action
     }
 
     public init(from decoder: Decoder) throws {
@@ -45,96 +46,105 @@ extension StorySlide: Codable {
         guard let kind = Kind(rawValue: rawType) else {
             throw StorySlideCodingError.unknownType(rawType)
         }
+        let action = try c.decodeIfPresent(CTAAction.self, forKey: .action)
 
         switch kind {
         case .title:
             self = .title(
                 icon: try c.decodeIfPresent(String.self, forKey: .icon) ?? "",
                 heading: try c.decode(String.self, forKey: .heading),
-                subheading: try c.decodeIfPresent(String.self, forKey: .subheading)
+                subheading: try c.decodeIfPresent(String.self, forKey: .subheading),
+                action: action
             )
         case .text:
             self = .text(
                 heading: try c.decodeIfPresent(String.self, forKey: .heading),
-                body: try c.decode(String.self, forKey: .body)
+                body: try c.decode(String.self, forKey: .body),
+                action: action
             )
         case .highlight:
             self = .highlight(
                 heading: try c.decodeIfPresent(String.self, forKey: .heading) ?? "",
                 value: try c.decode(String.self, forKey: .content),
-                caption: try c.decodeIfPresent(String.self, forKey: .caption)
+                caption: try c.decodeIfPresent(String.self, forKey: .caption),
+                action: action
             )
         case .example:
-            self = .example(text: try c.decode(String.self, forKey: .text))
+            self = .example(text: try c.decode(String.self, forKey: .text), action: action)
         case .table:
             let jsRows = try c.decode([[String]].self, forKey: .rows)
             self = .table(
                 heading: try c.decodeIfPresent(String.self, forKey: .caption),
-                rows: jsRows.map { row in (label: row.first ?? "", value: row.count > 1 ? row[1] : "") }
+                rows: jsRows.map { row in (label: row.first ?? "", value: row.count > 1 ? row[1] : "") },
+                action: action
             )
         case .tip:
-            self = .tip(text: try c.decode(String.self, forKey: .body))
+            self = .tip(text: try c.decode(String.self, forKey: .body), action: action)
         case .quiz:
             self = .quiz(
                 question: try c.decode(String.self, forKey: .question),
                 options: try c.decode([String].self, forKey: .options),
                 correctIndex: try c.decode(Int.self, forKey: .correct),
-                explanation: try c.decode(String.self, forKey: .explanation)
+                explanation: try c.decode(String.self, forKey: .explanation),
+                action: action
             )
         case .cta:
             self = .cta(
                 heading: try c.decode(String.self, forKey: .heading),
                 body: try c.decode(String.self, forKey: .body),
-                label: try c.decode(String.self, forKey: .label)
+                label: try c.decode(String.self, forKey: .label),
+                action: action
             )
         case .photo:
             self = .photo(
                 imageData: try c.decode(Data.self, forKey: .imageData),
-                caption: try c.decodeIfPresent(String.self, forKey: .caption)
+                caption: try c.decodeIfPresent(String.self, forKey: .caption),
+                action: action
             )
         }
     }
 
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(action, forKey: .action)
         switch self {
-        case let .title(icon, heading, subheading):
+        case let .title(icon, heading, subheading, _):
             try c.encode(Kind.title, forKey: .type)
             try c.encode(icon, forKey: .icon)
             try c.encode(heading, forKey: .heading)
             try c.encodeIfPresent(subheading, forKey: .subheading)
-        case let .text(heading, body):
+        case let .text(heading, body, _):
             try c.encode(Kind.text, forKey: .type)
             try c.encodeIfPresent(heading, forKey: .heading)
             try c.encode(body, forKey: .body)
-        case let .highlight(heading, value, caption):
+        case let .highlight(heading, value, caption, _):
             try c.encode(Kind.highlight, forKey: .type)
             try c.encode(value, forKey: .content)
             try c.encodeIfPresent(caption, forKey: .caption)
             try c.encode(heading, forKey: .heading) // Swift-only extra; JS ignores unknown keys.
-        case let .example(text):
+        case let .example(text, _):
             try c.encode(Kind.example, forKey: .type)
             try c.encode(text, forKey: .text)
-        case let .table(heading, rows):
+        case let .table(heading, rows, _):
             try c.encode(Kind.table, forKey: .type)
             try c.encode([String](repeating: "", count: 2), forKey: .headers)
             try c.encode(rows.map { [$0.label, $0.value] }, forKey: .rows)
             try c.encodeIfPresent(heading, forKey: .caption)
-        case let .tip(text):
+        case let .tip(text, _):
             try c.encode(Kind.tip, forKey: .type)
             try c.encode(text, forKey: .body)
-        case let .quiz(question, options, correctIndex, explanation):
+        case let .quiz(question, options, correctIndex, explanation, _):
             try c.encode(Kind.quiz, forKey: .type)
             try c.encode(question, forKey: .question)
             try c.encode(options, forKey: .options)
             try c.encode(correctIndex, forKey: .correct)
             try c.encode(explanation, forKey: .explanation)
-        case let .cta(heading, body, label):
+        case let .cta(heading, body, label, _):
             try c.encode(Kind.cta, forKey: .type)
             try c.encode(heading, forKey: .heading)
             try c.encode(body, forKey: .body)
             try c.encode(label, forKey: .label)
-        case let .photo(imageData, caption):
+        case let .photo(imageData, caption, _):
             try c.encode(Kind.photo, forKey: .type)
             try c.encode(imageData, forKey: .imageData)
             try c.encodeIfPresent(caption, forKey: .caption)
