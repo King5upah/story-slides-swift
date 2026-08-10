@@ -32,6 +32,35 @@ public struct DeckManifest: Codable {
             throw DeckManifestError.missingID
         }
     }
+
+    /// Writes this manifest to a temporary `.json` file — pass the returned
+    /// URL straight to a share sheet (e.g. `UIActivityViewController`).
+    /// File-based counterpart to `encodeDeckToParam`, and the
+    /// `StoryDeckView` equivalent of `ShareableDeck.writeToTemporaryFile()`.
+    public func writeToTemporaryFile() throws -> URL {
+        let json = try serializeDeck(self)
+        let safeName = (title ?? id)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: "-")
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(safeName.isEmpty ? "deck" : safeName)
+            .appendingPathExtension("json")
+        try json.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    public static func decoded(from data: Data) throws -> DeckManifest {
+        guard let json = String(data: data, encoding: .utf8) else {
+            throw DeckManifestError.invalidJSON
+        }
+        return try deserializeDeck(json)
+    }
+
+    public static func decoded(fromFileAt url: URL) throws -> DeckManifest {
+        let data = try Data(contentsOf: url)
+        return try decoded(from: data)
+    }
 }
 
 public enum DeckManifestError: Error, LocalizedError, Equatable {
