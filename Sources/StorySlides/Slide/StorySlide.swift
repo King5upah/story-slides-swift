@@ -10,6 +10,7 @@ public enum StorySlide {
     case example(text: String)
     case table(heading: String?, rows: [(label: String, value: String)])
     case tip(text: String)
+    case quiz(question: String, options: [String], correctIndex: Int, explanation: String)
     case cta(heading: String, body: String, label: String)
     case photo(imageData: Data, caption: String?)
 }
